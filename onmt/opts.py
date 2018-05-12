@@ -43,6 +43,19 @@ def model_opts(parser):
                        embedding sizes will be set to N^feat_vec_exponent
                        where N is the number of values the feature takes.""")
 
+    group = parser.add_argument_group('Model-Embedding Linking')
+    group.add_argument('-linked_embeddings', type=str, default=None,
+                       help="""File containing two tab-separated columns:
+                       first the word, followed by the cluster.
+                       If specified, LinkedEmbeddings will be used.""")
+    group.add_argument('-linked_vec_size', type=int, default=100,
+                       help='Word embedding size for linked part of tgt.')
+    group.add_argument('-linked_default', type=str, default='identity',
+                       choices=['identity', 'unk'],
+                       help="""Cluster to use for words not included in
+                       linking map. Options are [identity|unk].""")
+
+
     # Encoder-Deocder Options
     group = parser.add_argument_group('Model- Encoder-Decoder')
     group.add_argument('-model_type', default='text',
