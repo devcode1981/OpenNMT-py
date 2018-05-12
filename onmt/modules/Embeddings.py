@@ -150,6 +150,10 @@ class Embeddings(nn.Module):
             self.make_embedding.add_module('pe', pe)
 
     @property
+    def word_lut_weight(self):
+        return self.make_embedding[0][0].weight
+
+    @property
     def word_lut(self):
         return self.make_embedding[0][0]
 
@@ -190,3 +194,71 @@ class Embeddings(nn.Module):
         aeq(emb_size, self.embedding_size)
 
         return emb
+
+class LinkedEmbeddings(Embeddings):
+    """
+    Embeddings constructed by concatenating a word-specific vector
+    and a cluster vector shared between all words in the cluster.
+    For use on the target side (on the source side, just use features)
+    """
+    def __init__(self,
+                 word_vec_size,
+                 linked_vec_size,
+                 word_vocab_size,
+                 word_padding_idx,
+                 cluster_mapping,
+                 position_encoding=False,
+                 dropout=0,
+                 sparse=False):
+        cluster_vocab_size = max(cluster_mapping) + 1
+        super(LinkedEmbeddings, self).__init__(
+            word_vec_size,
+            word_vocab_size,
+            word_padding_idx,
+            feat_merge="concat",
+            feat_vec_size=linked_vec_size,
+            feat_padding_idx=[word_padding_idx],
+            feat_vocab_sizes=[cluster_vocab_size],
+            position_encoding=position_encoding,
+            dropout=dropout,
+            sparse=sparse)
+        self.cluster_mapping = nn.Parameter(torch.LongTensor(cluster_mapping),
+                                            requires_grad=False)
+
+    @property
+    def word_lut_weight(self):
+        return torch.cat([emb.weight for emb in self.make_embedding[0]], dim=-1)
+
+    @property
+    def word_lut(self):
+        """ Concatenation is now part of the word embedding """
+        return self.make_embedding[0]
+
+    @property
+    def emb_luts(self):
+        return self.make_embedding[0]
+
+    def forward(self, input):
+        """
+        Computes the partly linked embeddings for words.
+
+        Args:
+            input (`LongTensor`): index tensor `[len x batch x 1]`
+        Return:
+            `FloatTensor`: word embeddings `[len x batch x embedding_size]`
+        """
+        in_length, in_batch, nfeat = input.size()
+        aeq(nfeat, 1)
+
+        flat_input = input.view(-1)
+        cluster_indices = self.cluster_mapping.index_select(0, flat_input)
+        concat = torch.cat([input, cluster_indices.view(input.shape)], dim=-1)
+
+        emb = self.make_embedding(concat)
+
+        return emb
+
+    def load_pretrained_vectors(self, emb_file, fixed):
+        if emb_file:
+            raise NotImplementedError(
+                'LinkedEmbeddings does not support pretrained vectors')

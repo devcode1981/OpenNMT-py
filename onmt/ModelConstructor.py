@@ -4,6 +4,7 @@ and creates each encoder and decoder accordingly.
 """
 import torch
 import torch.nn as nn
+import collections
 
 import onmt
 import onmt.io
@@ -13,7 +14,8 @@ from onmt.Models import NMTModel, MeanEncoder, RNNEncoder, \
                         StdRNNDecoder, InputFeedRNNDecoder
 from onmt.modules import Embeddings, ImageEncoder, CopyGenerator, \
                          TransformerEncoder, TransformerDecoder, \
-                         CNNEncoder, CNNDecoder, AudioEncoder
+                         CNNEncoder, CNNDecoder, AudioEncoder, \
+                         LinkedEmbeddings
 from onmt.Utils import use_gpu
 from torch.nn.init import xavier_uniform
 
@@ -27,6 +29,9 @@ def make_embeddings(opt, word_dict, feature_dicts, for_encoder=True):
         feature_dicts([Vocab], optional): a list of feature dictionary.
         for_encoder(bool): make Embeddings for encoder or decoder?
     """
+    if not for_encoder and opt.linked_embeddings is not None:
+        return make_linked_embeddings(
+            opt, word_dict, feature_dicts, for_encoder)
     if for_encoder:
         embedding_dim = opt.src_word_vec_size
     else:
@@ -51,6 +56,52 @@ def make_embeddings(opt, word_dict, feature_dicts, for_encoder=True):
                       word_vocab_size=num_word_embeddings,
                       feat_vocab_sizes=num_feat_embeddings,
                       sparse=opt.optim == "sparseadam")
+
+
+def make_linked_embeddings(opt, word_dict, feature_dicts, for_encoder=True):
+    """
+    Make a LinkedEmbeddings instance.
+    Args:
+        opt: the option in current environment.
+        word_dict(Vocab): words dictionary.
+        feature_dicts([Vocab], optional): a list of feature dictionary.
+        for_encoder(bool): make Embeddings for encoder or decoder?
+    """
+    if for_encoder:
+        print('Warning: you probably do not want to use LinkedEmbeddings '
+              'on the source side.')
+        embedding_dim = opt.src_word_vec_size
+    else:
+        embedding_dim = opt.tgt_word_vec_size
+
+    word_padding_idx = word_dict.stoi[onmt.io.PAD_WORD]
+    num_word_embeddings = len(word_dict)
+
+    cluster_name_to_idx = {}
+    word_to_cluster_idx = collections.defaultdict(int)
+    current_idx = 1
+    with open(opt.linked_embeddings, 'r') as fobj:
+        for line in fobj:
+            word, cluster = line.strip().split('\t')
+            if cluster not in cluster_name_to_idx:
+                cluster_name_to_idx[cluster] = current_idx
+                current_idx += 1
+            word_to_cluster_idx[word] = cluster_name_to_idx[cluster]
+    if opt.linked_default == 'identity':
+        for word in word_dict.itos:
+            if word not in word_to_cluster_idx:
+                word_to_cluster_idx[word] = current_idx
+                current_idx += 1
+    cluster_mapping = [word_to_cluster_idx[word] for word in word_dict.itos]
+
+    return LinkedEmbeddings(word_vec_size=embedding_dim,
+                            linked_vec_size=opt.linked_vec_size,
+                            word_vocab_size=num_word_embeddings,
+                            word_padding_idx=word_padding_idx,
+                            cluster_mapping=cluster_mapping,
+                            position_encoding=opt.position_encoding,
+                            dropout=opt.dropout,
+                            sparse=opt.optim == "sparseadam")
 
 
 def make_encoder(opt, embeddings):
@@ -169,8 +220,8 @@ def make_base_model(model_opt, fields, gpu, checkpoint=None):
     # Make decoder.
     tgt_dict = fields["tgt"].vocab
     feature_dicts = onmt.io.collect_feature_vocabs(fields, 'tgt')
-    tgt_embeddings = make_embeddings(model_opt, tgt_dict,
-                                     feature_dicts, for_encoder=False)
+    tgt_embeddings = make_linked_embeddings(
+        model_opt, tgt_dict, feature_dicts, for_encoder=False)
 
     # Share the embedding matrix - preprocess with share_vocab required.
     if model_opt.share_embeddings:
@@ -193,7 +244,7 @@ def make_base_model(model_opt, fields, gpu, checkpoint=None):
             nn.Linear(model_opt.rnn_size, len(fields["tgt"].vocab)),
             nn.LogSoftmax(dim=-1))
         if model_opt.share_decoder_embeddings:
-            generator[0].weight = decoder.embeddings.word_lut.weight
+            generator[0].weight = decoder.embeddings.word_lut_weight
     else:
         generator = CopyGenerator(model_opt.rnn_size,
                                   fields["tgt"].vocab)

@@ -11,7 +11,7 @@ from onmt.modules.Transformer import \
 from onmt.modules.Conv2Conv import CNNEncoder, CNNDecoder
 from onmt.modules.MultiHeadedAttn import MultiHeadedAttention
 from onmt.modules.StackedRNN import StackedLSTM, StackedGRU
-from onmt.modules.Embeddings import Embeddings, PositionalEncoding
+from onmt.modules.Embeddings import Embeddings, PositionalEncoding, LinkedEmbeddings
 from onmt.modules.WeightNorm import WeightNormConv2d
 
 from onmt.Models import EncoderBase, MeanEncoder, StdRNNDecoder, \
@@ -31,6 +31,7 @@ __all__ = [EncoderBase, MeanEncoder, RNNDecoderBase, InputFeedRNNDecoder,
            CopyGenerator, MultiHeadedAttention,
            LayerNorm,
            TransformerEncoder, TransformerDecoder, Embeddings, Elementwise,
+           LinkedEmbeddings,
            MatrixTree, WeightNormConv2d, ConvMultiStepAttention,
            CNNEncoder, CNNDecoder, StackedLSTM, StackedGRU,
            context_gate_factory, CopyGeneratorLossCompute, AudioEncoder]
