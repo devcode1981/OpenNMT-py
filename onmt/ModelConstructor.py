@@ -114,8 +114,10 @@ def make_decoder(opt, embeddings):
                              opt.reuse_copy_attn)
 
 
-def load_test_model(opt, dummy_opt):
-    checkpoint = torch.load(opt.model,
+def load_test_model(opt, dummy_opt, model_path=None):
+    if model_path is None:
+        model_path = opt.model
+    checkpoint = torch.load(model_path,
                             map_location=lambda storage, loc: storage)
     fields = onmt.io.load_fields_from_vocab(
         checkpoint['vocab'], data_type=opt.data_type)
@@ -191,7 +193,7 @@ def make_base_model(model_opt, fields, gpu, checkpoint=None):
     if not model_opt.copy_attn:
         generator = nn.Sequential(
             nn.Linear(model_opt.rnn_size, len(fields["tgt"].vocab)),
-            nn.LogSoftmax())
+            nn.LogSoftmax(dim=-1))
         if model_opt.share_decoder_embeddings:
             generator[0].weight = decoder.embeddings.word_lut.weight
     else:

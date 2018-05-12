@@ -7,6 +7,7 @@ import glob
 import os
 import sys
 import random
+from datetime import datetime
 
 import torch
 import torch.nn as nn
@@ -18,16 +19,17 @@ import onmt.Models
 import onmt.ModelConstructor
 import onmt.modules
 from onmt.Utils import use_gpu
-import opts
+import onmt.opts
+
 
 parser = argparse.ArgumentParser(
     description='train.py',
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-# opts.py
-opts.add_md_help_argument(parser)
-opts.model_opts(parser)
-opts.train_opts(parser)
+# onmt.opts.py
+onmt.opts.add_md_help_argument(parser)
+onmt.opts.model_opts(parser)
+onmt.opts.train_opts(parser)
 
 opt = parser.parse_args()
 if opt.word_vec_size != -1:
@@ -72,11 +74,15 @@ if opt.exp_host != "":
 
 if opt.tensorboard:
     from tensorboardX import SummaryWriter
+    writer = SummaryWriter(
+        opt.tensorboard_log_dir + datetime.now().strftime("/%b-%d_%H-%M-%S"),
+        comment="Onmt")
 
-    writer = SummaryWriter(opt.tensorboard_log_dir, comment="Onmt")
+progress_step = 0
 
 
 def report_func(epoch, batch, num_batches,
+                progress_step,
                 start_time, lr, report_stats):
     """
     This is the user-defined batch-level traing progress
@@ -86,6 +92,7 @@ def report_func(epoch, batch, num_batches,
         epoch(int): current epoch count.
         batch(int): current batch count.
         num_batches(int): total number of batches.
+        progress_step(int): the progress step.
         start_time(float): last report time.
         lr(float): current learning rate.
         report_stats(Statistics): old Statistics instance.
@@ -99,7 +106,7 @@ def report_func(epoch, batch, num_batches,
         if opt.tensorboard:
             # Log the progress using the number of batches on the x-axis.
             report_stats.log_tensorboard(
-                "progress", writer, lr, epoch * num_batches + batch)
+                "progress", writer, lr, progress_step)
         report_stats = onmt.Statistics()
 
     return report_stats
@@ -177,14 +184,19 @@ def make_dataset_iter(datasets, fields, opt, is_train=True):
     batch_size = opt.batch_size if is_train else opt.valid_batch_size
     batch_size_fn = None
     if is_train and opt.batch_type == "tokens":
-        global max_src_in_batch, max_tgt_in_batch
-
+        # In token batching scheme, the number of sequences is limited
+        # such that the total number of src/tgt tokens (including padding)
+        # in a batch <= batch_size
         def batch_size_fn(new, count, sofar):
+            # Maintains the longest src and tgt length in the current batch
             global max_src_in_batch, max_tgt_in_batch
+            # Reset current longest length at a new batch (count=1)
             if count == 1:
                 max_src_in_batch = 0
                 max_tgt_in_batch = 0
+            # Src: <bos> w1 ... wN <eos>
             max_src_in_batch = max(max_src_in_batch, len(new.src) + 2)
+            # Tgt: w1 ... wN <eos>
             max_tgt_in_batch = max(max_tgt_in_batch, len(new.tgt) + 1)
             src_elements = count * max_src_in_batch
             tgt_elements = count * max_tgt_in_batch
