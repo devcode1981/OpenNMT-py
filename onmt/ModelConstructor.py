@@ -29,9 +29,12 @@ def make_embeddings(opt, word_dict, feature_dicts, for_encoder=True):
         feature_dicts([Vocab], optional): a list of feature dictionary.
         for_encoder(bool): make Embeddings for encoder or decoder?
     """
-    if not for_encoder and opt.linked_embeddings is not None:
-        return make_linked_embeddings(
-            opt, word_dict, feature_dicts, for_encoder)
+    try:
+        if not for_encoder and opt.linked_embeddings is not None:
+            return make_linked_embeddings(
+                opt, word_dict, feature_dicts, for_encoder)
+    except AttributeError:
+        pass
     if for_encoder:
         embedding_dim = opt.src_word_vec_size
     else:
