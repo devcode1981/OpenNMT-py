@@ -191,8 +191,13 @@ def main():
     print("Building & saving training data...")
     train_dataset_files = build_save_dataset('train', fields, opt)
 
-    print("Building & saving vocabulary...")
-    build_save_vocab(train_dataset_files, fields, opt)
+    if opt.reuse_vocab:
+        print("Re-saving vocabulary...")
+        vocab_file = opt.save_data + '.vocab.pt'
+        torch.save(onmt.io.save_fields_to_vocab(fields), vocab_file)
+    else:
+        print("Building & saving vocabulary...")
+        build_save_vocab(train_dataset_files, fields, opt)
 
     print("Building & saving validation data...")
     build_save_dataset('valid', fields, opt)
