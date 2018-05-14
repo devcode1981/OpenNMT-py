@@ -183,7 +183,7 @@ def main():
         # Reuse previously created vocabulary,
         # to enable finetuning a model with additional data
         fields = onmt.io.load_fields_from_vocab(
-            torch.load(opt.reuse_vocab, opt.data_type)
+            torch.load(opt.reuse_vocab, opt.data_type))
     else:
         print("Building `Fields` object...")
         fields = onmt.io.get_fields(opt.data_type, src_nfeats, tgt_nfeats)
