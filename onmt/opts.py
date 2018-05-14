@@ -171,6 +171,9 @@ def preprocess_opts(parser):
     group.add_argument('-tgt_vocab', default="",
                        help="""Path to an existing target vocabulary. Format:
                        one word per line.""")
+    group.add_argument('-reuse_vocab', default=None,
+                       help="""Path to an existing preprocessing vocabulary.
+                       Format: DATA.vocab.pt""")
     group.add_argument('-features_vocabs_prefix', type=str, default='',
                        help="Path prefix to existing features vocabularies")
     group.add_argument('-src_vocab_size', type=int, default=50000,
