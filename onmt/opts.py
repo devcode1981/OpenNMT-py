@@ -130,6 +130,9 @@ def model_opts(parser):
                        help='Train a coverage attention layer.')
     group.add_argument('-lambda_coverage', type=float, default=1,
                        help='Lambda value for coverage.')
+    group.add_argument('-type_weighting_loss', type=str, default=None,
+                       help="""File containing words whose contribution
+                       to the loss should be doubled.""")
 
 
 def preprocess_opts(parser):

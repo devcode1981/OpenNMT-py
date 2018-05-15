@@ -155,7 +155,7 @@ class NMTLossCompute(LossComputeBase):
     Standard NMT Loss Computation.
     """
     def __init__(self, generator, tgt_vocab, normalization="sents",
-                 label_smoothing=0.0):
+                 label_smoothing=0.0, reduce=True):
         super(NMTLossCompute, self).__init__(generator, tgt_vocab)
         assert (label_smoothing >= 0.0 and label_smoothing <= 1.0)
         if label_smoothing > 0:
@@ -165,7 +165,7 @@ class NMTLossCompute(LossComputeBase):
             # If label smoothing value is set to zero, the loss
             # is equivalent to NLLLoss or CrossEntropyLoss.
             # All non-true labels are uniformly set to low-confidence.
-            self.criterion = nn.KLDivLoss(size_average=False)
+            self.criterion = nn.KLDivLoss(size_average=False, reduce=reduce)
             one_hot = torch.randn(1, len(tgt_vocab))
             one_hot.fill_(label_smoothing / (len(tgt_vocab) - 2))
             one_hot[0][self.padding_idx] = 0
@@ -173,7 +173,9 @@ class NMTLossCompute(LossComputeBase):
         else:
             weight = torch.ones(len(tgt_vocab))
             weight[self.padding_idx] = 0
-            self.criterion = nn.NLLLoss(weight, size_average=False)
+            self.criterion = nn.NLLLoss(weight,
+                                        size_average=False,
+                                        reduce=reduce)
         self.confidence = 1.0 - label_smoothing
 
     def _make_shard_state(self, batch, output, range_, attns=None):
@@ -207,6 +209,50 @@ class NMTLossCompute(LossComputeBase):
         stats = self._stats(loss_data, scores.data, target.view(-1).data)
 
         return loss, stats
+
+
+class TypeWeightingLossCompute(NMTLossCompute):
+    def __init__(self, *args, tgt_vocab_weights, **kwargs):
+        super(TypeWeightingLossCompute, self).__init__(
+            *args, reduce=False, **kwargs)
+        self.tgt_vocab_weights = nn.Parameter(
+            torch.FloatTensor(tgt_vocab_weights), requires_grad=False)
+
+    # FIXME: this and superclass needs to be refactored
+    def _compute_loss(self, batch, output, target):
+        gtruth = target.view(-1)
+        weights = self.tgt_vocab_weights.index_select(0, gtruth)
+
+        # ## copy-pasta from superclass
+        scores = self.generator(self._bottle(output))
+
+        if self.confidence < 1:
+            tdata = gtruth.data
+            mask = torch.nonzero(tdata.eq(self.padding_idx)).squeeze()
+            log_likelihood = torch.gather(scores.data, 1, tdata.unsqueeze(1))
+            tmp_ = self.one_hot.repeat(gtruth.size(0), 1)
+            tmp_.scatter_(1, tdata.unsqueeze(1), self.confidence)
+            if mask.dim() > 0:
+                log_likelihood.index_fill_(0, mask, 0)
+                tmp_.index_fill_(0, mask, 0)
+            gtruth = Variable(tmp_, requires_grad=False)
+        # ## copy-pasta ends
+
+        unweighted = self.criterion(scores, gtruth)
+        loss = (unweighted * weights).sum(-1)
+
+        # ## copy-pasta from superclass
+        if self.confidence < 1:
+            # Default: report smoothed ppl.
+            # loss_data = -log_likelihood.sum(0)
+            loss_data = loss.data.clone()
+        else:
+            loss_data = loss.data.clone()
+
+        stats = self._stats(loss_data, scores.data, target.view(-1).data)
+
+        return loss, stats
+        # ## copy-pasta ends
 
 
 def filter_shard_state(state, requires_grad=True, volatile=False):

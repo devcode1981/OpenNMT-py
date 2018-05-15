@@ -218,6 +218,15 @@ def make_loss_compute(model, tgt_vocab, opt, train=True):
         compute = onmt.modules.CopyGeneratorLossCompute(
             model.generator, tgt_vocab, opt.copy_attn_force,
             opt.copy_loss_by_seqlength)
+    elif train and opt.type_weighting_loss is not None:
+        with open(opt.type_weighting_loss, 'r') as fobj:
+            weighted = set(line.strip() for line in fobj)
+        tgt_vocab_weights = [2. if word in weighted else 1.
+                             for word in tgt_vocab.itos]
+        compute = onmt.Loss.TypeWeightingLossCompute(
+            model.generator, tgt_vocab,
+            tgt_vocab_weights=tgt_vocab_weights,
+            label_smoothing=opt.label_smoothing)
     else:
         compute = onmt.Loss.NMTLossCompute(
             model.generator, tgt_vocab,
@@ -468,6 +477,7 @@ def main():
         # I don't like reassigning attributes of opt: it's not clear.
         opt.start_epoch = checkpoint['epoch'] + 1
         model_opt.save_model = opt.save_model
+        model_opt.type_weighting_loss = opt.type_weighting_loss
     else:
         checkpoint = None
         model_opt = opt
