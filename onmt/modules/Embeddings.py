@@ -195,6 +195,7 @@ class Embeddings(nn.Module):
 
         return emb
 
+
 class LinkedEmbeddings(Embeddings):
     """
     Embeddings constructed by concatenating a word-specific vector
@@ -227,7 +228,8 @@ class LinkedEmbeddings(Embeddings):
 
     @property
     def word_lut_weight(self):
-        return torch.cat([emb.weight for emb in self.make_embedding[0]], dim=-1)
+        return torch.cat([emb.weight for emb in self.make_embedding[0]],
+                         dim=-1)
 
     @property
     def word_lut(self):
