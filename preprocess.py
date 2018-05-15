@@ -178,14 +178,26 @@ def main():
     print(" * number of source features: %d." % src_nfeats)
     print(" * number of target features: %d." % tgt_nfeats)
 
-    print("Building `Fields` object...")
-    fields = onmt.io.get_fields(opt.data_type, src_nfeats, tgt_nfeats)
+    if opt.reuse_vocab:
+        print("Loading `Fields` object from %s ..." % opt.reuse_vocab)
+        # Reuse previously created vocabulary,
+        # to enable finetuning a model with additional data
+        fields = onmt.io.load_fields_from_vocab(
+            torch.load(opt.reuse_vocab, opt.data_type))
+    else:
+        print("Building `Fields` object...")
+        fields = onmt.io.get_fields(opt.data_type, src_nfeats, tgt_nfeats)
 
     print("Building & saving training data...")
     train_dataset_files = build_save_dataset('train', fields, opt)
 
-    print("Building & saving vocabulary...")
-    build_save_vocab(train_dataset_files, fields, opt)
+    if opt.reuse_vocab:
+        print("Re-saving vocabulary...")
+        vocab_file = opt.save_data + '.vocab.pt'
+        torch.save(onmt.io.save_fields_to_vocab(fields), vocab_file)
+    else:
+        print("Building & saving vocabulary...")
+        build_save_vocab(train_dataset_files, fields, opt)
 
     print("Building & saving validation data...")
     build_save_dataset('valid', fields, opt)
