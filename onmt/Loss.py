@@ -222,10 +222,8 @@ class TypeWeightingLossCompute(NMTLossCompute):
     def _compute_loss(self, batch, output, target):
         gtruth = target.view(-1)
         weights = self.tgt_vocab_weights.index_select(0, gtruth)
-        # debug print
-        print('sum boost:', (weights - 1).sum().data)
 
-        ### copy-pasta from superclass
+        # ## copy-pasta from superclass
         scores = self.generator(self._bottle(output))
 
         if self.confidence < 1:
@@ -238,12 +236,12 @@ class TypeWeightingLossCompute(NMTLossCompute):
                 log_likelihood.index_fill_(0, mask, 0)
                 tmp_.index_fill_(0, mask, 0)
             gtruth = Variable(tmp_, requires_grad=False)
-        ### copy-pasta ends
+        # ## copy-pasta ends
 
         unweighted = self.criterion(scores, gtruth)
         loss = (unweighted * weights).sum(-1)
 
-        ### copy-pasta from superclass
+        # ## copy-pasta from superclass
         if self.confidence < 1:
             # Default: report smoothed ppl.
             # loss_data = -log_likelihood.sum(0)
@@ -254,7 +252,7 @@ class TypeWeightingLossCompute(NMTLossCompute):
         stats = self._stats(loss_data, scores.data, target.view(-1).data)
 
         return loss, stats
-        ### copy-pasta ends
+        # ## copy-pasta ends
 
 
 def filter_shard_state(state, requires_grad=True, volatile=False):
