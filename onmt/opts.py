@@ -55,7 +55,6 @@ def model_opts(parser):
                        help="""Cluster to use for words not included in
                        linking map. Options are [identity|unk].""")
 
-
     # Encoder-Deocder Options
     group = parser.add_argument_group('Model- Encoder-Decoder')
     group.add_argument('-model_type', default='text',
