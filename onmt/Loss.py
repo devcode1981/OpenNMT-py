@@ -236,10 +236,11 @@ class TypeWeightingLossCompute(NMTLossCompute):
                 log_likelihood.index_fill_(0, mask, 0)
                 tmp_.index_fill_(0, mask, 0)
             gtruth = Variable(tmp_, requires_grad=False)
-        # ## copy-pasta ends
+            # ## copy-pasta ends
+            weights = weights.unsqueeze(1)
 
         unweighted = self.criterion(scores, gtruth)
-        loss = (unweighted * weights).sum(-1)
+        loss = (unweighted * weights).sum()
 
         # ## copy-pasta from superclass
         if self.confidence < 1:
