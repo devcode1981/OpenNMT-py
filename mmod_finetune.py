@@ -388,7 +388,7 @@ def build_model(model_opt, opt, fields, checkpoint):
         print('freezing', name)
         param.requires_grad = False
     # a new multi-modal generator is trained
-    model.generator = onmt.modules.multimodal.MultiModalGenerator(model.generator)
+    model.generator = onmt.modules.Multimodal.MultiModalGenerator(model.generator)
     if len(opt.gpuid) > 1:
         print('Multi gpu training: ', opt.gpuid)
         model = nn.DataParallel(model, device_ids=opt.gpuid, dim=1)
