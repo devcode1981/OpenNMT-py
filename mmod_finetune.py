@@ -12,6 +12,7 @@ from datetime import datetime
 import torch
 import torch.nn as nn
 from torch import cuda
+import numpy as np
 
 import onmt
 import onmt.io
@@ -384,11 +385,14 @@ def build_model(model_opt, opt, fields, checkpoint):
                                                   use_gpu(opt), checkpoint)
     # parameters of original model are frozen
     for name, param in model.named_parameters():
-        # FIXME: anything to exclude?
+        if name.startswith('generator'):
+            # don't freeze generator
+            continue
         print('freezing', name)
         param.requires_grad = False
     # a new multi-modal generator is trained
-    model.generator = onmt.modules.Multimodal.MultiModalGenerator(model.generator)
+    model.generator = onmt.modules.multimodal.MultiModalGenerator(
+        model.generator, model_opt.img_feat_dim)
     if len(opt.gpuid) > 1:
         print('Multi gpu training: ', opt.gpuid)
         model = nn.DataParallel(model, device_ids=opt.gpuid, dim=1)
@@ -397,6 +401,22 @@ def build_model(model_opt, opt, fields, checkpoint):
     return model
 
 
+def build_optim(model, checkpoint):
+    print('Making optimizer for training.')
+    optim = onmt.Optim(
+        opt.optim, opt.learning_rate, opt.max_grad_norm,
+        lr_decay=opt.learning_rate_decay,
+        start_decay_at=opt.start_decay_at,
+        beta1=opt.adam_beta1,
+        beta2=opt.adam_beta2,
+        adagrad_accum=opt.adagrad_accumulator_init,
+        decay_method=opt.decay_method,
+        warmup_steps=opt.warmup_steps,
+        model_size=opt.rnn_size)
+    optim.set_parameters(model.named_parameters())
+    return optim
+
+"""
 def build_optim(model, checkpoint):
     saved_optimizer_state_dict = None
 
@@ -466,7 +486,7 @@ def build_optim(model, checkpoint):
                 " but optimizer state is empty")
 
     return optim
-
+"""
 
 # Debugging method for showing the optimizer state
 def show_optimizer_state(optim):
@@ -482,9 +502,10 @@ def show_optimizer_state(optim):
 
 def main():
     # start with loading the image features
-    # open hdf5 file with the image features
     train_img_feats = np.load(opt.path_to_train_img_feats)
     valid_img_feats = np.load(opt.path_to_valid_img_feats)
+    train_img_feats = train_img_feats.astype(np.float32)
+    valid_img_feats = valid_img_feats.astype(np.float32)
 
     assert opt.train_from, 'mmod_finetune requires pre-trained model'
     # Load checkpoint if we resume from a previous training.
