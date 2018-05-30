@@ -226,7 +226,7 @@ def make_loss_compute(model, tgt_vocab, opt, train=True):
     own *LossCompute class, by subclassing LossComputeBase.
     """
     if 'generator' in opt.multimodal_model_type:
-        compute = onmt.Loss.MultimodalLossCompute(
+        compute = onmt.modules.multimodal.MultiModalLossCompute(
             model.generator, tgt_vocab,
             label_smoothing=opt.label_smoothing if train else 0.0)
     else:
@@ -515,6 +515,7 @@ def main():
     model_opt = checkpoint['opt']
     # I don't like reassigning attributes of opt: it's not clear.
     opt.start_epoch = checkpoint['epoch'] + 1
+    model_opt.save_model = opt.save_model
 
     # Peek the fisrt dataset to determine the data_type.
     # (All datasets have the same data_type).

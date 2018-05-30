@@ -7,38 +7,26 @@ import onmt
 import onmt.io
 from onmt.Utils import aeq
 
-class GeneratorGate(nn.Module):
-    def __init__(self, img_feat_size, vocab_size):
-        super(GeneratorGate, self).__init__()
-        self.gate = nn.Linear(img_feat_size, vocab_size, bias=True)
-
-    def forward(self, inp, img_feats):
-        print('inp', inp.shape)
-        print('img_feats', img_feats.shape)
-        print('gated', self.gate(img_feats).shape)
-        return inp * F.sigmoid(self.gate(img_feats))
 
 
 class MultiModalGenerator(nn.Module):
-    def __init__(self, old_generator, img_feat_size):
+    def __init__(self, old_generator, img_feat_size, ):
         super(MultiModalGenerator, self).__init__()
         self.linear = old_generator[0]
-        print('old_generator', self.linear.weight.shape)
-        self.gate = GeneratorGate(
-            img_feat_size,
-            self.linear.weight.size(0))
+        self.vocab_size = self.linear.weight.size(0)
+        self.gate = nn.Linear(img_feat_size, self.vocab_size, bias=True)
         self.logsoftmax = nn.LogSoftmax(dim=-1)
 
-    def forward(self, hidden, img_feats):
+    def forward(self, hidden, img_feats, n_time):
         proj = self.linear(hidden)
-        gated = self.gate(proj, img_feats)
-        return self.logsoftmax(gated)
-        pass
+        gate = F.sigmoid(self.gate(img_feats))
+        gate = gate.repeat(n_time, 1)
+        return self.logsoftmax(proj * gate)
+
 
 class MultiModalLossCompute(onmt.Loss.NMTLossCompute):
     def _compute_loss(self, batch, output, target, img_feats):
-        img_gate = FIXME # compute gate from img_feats. Replicate for timesteps.
-        scores = self.generator(self._bottle(output), img_gate)
+        scores = self.generator(self._bottle(output), img_feats, output.size(0))
 
         ### Copypasta from superclass
         gtruth = target.view(-1)

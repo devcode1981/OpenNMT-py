@@ -68,10 +68,10 @@ class TrainerMultimodal(object):
                 'Must provide training image features!'
         assert(not self.valid_img_feats is None), \
                 'Must provide validation image features!'
-        assert(self.multimodal_model_type in ['generator', 'encoder', 'encoder+generator']), \
+        assert(self.multimodal_model_type in ['generator', 'bank', 'bank+generator']), \
                 'Invalid multimodal model type: %s!'%(self.multimodal_model_type)
         # FIXME
-        assert 'encoder' not in self.multimodal_model_type, 'Encoder-MMOD not implemented yet'
+        assert 'bank' not in self.multimodal_model_type, 'Bank-MMOD not implemented yet'
 
         assert(grad_accum_count > 0)
         if grad_accum_count > 1:
@@ -184,7 +184,7 @@ class TrainerMultimodal(object):
 
             # Compute loss.
             batch_stats = self.valid_loss.monolithic_compute_loss(
-                    batch, outputs, attns)
+                    batch, outputs, attns, img_feats=img_feats)
 
             # Update statistics.
             stats.update(batch_stats)

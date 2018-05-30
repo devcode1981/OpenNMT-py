@@ -493,7 +493,7 @@ def mmod_finetune_opts(parser):
     parser.add_argument('-dropout_imgs', type=float, default=0.5,
                         help="Dropout probability applied to image features.")
     parser.add_argument('--multimodal_model_type', required=True, type=str,
-                        choices=['generator', 'encoder', 'encoder+generator'],
+                        choices=['generator', 'bank', 'bank+generator'],
                         help="""Multi-modal NMT model type.""")
 
 # MARKDOWN boilerplate

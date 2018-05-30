@@ -65,7 +65,7 @@ class LossComputeBase(nn.Module):
         """
         return NotImplementedError
 
-    def monolithic_compute_loss(self, batch, output, attns):
+    def monolithic_compute_loss(self, batch, output, attns, **kwargs):
         """
         Compute the forward loss for the batch.
 
@@ -81,13 +81,14 @@ class LossComputeBase(nn.Module):
         """
         range_ = (0, batch.tgt.size(0))
         shard_state = self._make_shard_state(batch, output, range_, attns)
+        shard_state.update(**kwargs)
         _, batch_stats = self._compute_loss(batch, **shard_state)
 
         return batch_stats
 
     def sharded_compute_loss(self, batch, output, attns,
                              cur_trunc, trunc_size, shard_size,
-                             normalization):
+                             normalization, **kwargs):
         """Compute the forward loss and backpropagate.  Computation is done
         with shards and optionally truncation for memory efficiency.
 
@@ -120,6 +121,7 @@ class LossComputeBase(nn.Module):
         shard_state = self._make_shard_state(batch, output, range_, attns)
 
         for shard in shards(shard_state, shard_size):
+            shard.update(**kwargs)
             loss, stats = self._compute_loss(batch, **shard)
             loss.div(normalization).backward()
             batch_stats.update(stats)
@@ -259,7 +261,8 @@ def shards(state, shard_size, eval=False):
             yield dict(zip(keys, shard_tensors))
 
         # Assumed backprop'd
-        variables = ((state[k], v.grad.data) for k, v in non_none.items()
-                     if isinstance(v, Variable) and v.grad is not None)
-        inputs, grads = zip(*variables)
-        torch.autograd.backward(inputs, grads)
+        variables = [(state[k], v.grad.data) for k, v in non_none.items()
+                     if isinstance(v, Variable) and v.grad is not None]
+        if len(variables) > 0:
+            inputs, grads = zip(*variables)
+            torch.autograd.backward(inputs, grads)
