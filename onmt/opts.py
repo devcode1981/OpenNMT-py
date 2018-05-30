@@ -496,6 +496,10 @@ def mmod_finetune_opts(parser):
                         choices=['generator', 'bank', 'bank+generator'],
                         help="""Multi-modal NMT model type.""")
 
+def mmod_finetune_translate_opts(parser):
+    parser.add_argument('-path_to_test_img_feats', required=True,
+                        help="""Path to npy file containing test image features""")
+
 # MARKDOWN boilerplate
 
 # Copyright 2016 The Chromium Authors. All rights reserved.
