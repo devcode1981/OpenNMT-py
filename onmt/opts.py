@@ -504,6 +504,28 @@ def add_md_help_argument(parser):
                         help='print Markdown-formatted help text and exit.')
 
 
+#####################################################################
+# Command-line parameters for multi-modal NMT through finetuning
+#####################################################################
+
+def mmod_finetune_opts(parser):
+    parser.add_argument('-path_to_train_img_feats', required=True,
+                        help="""Path to npy file containing training image features""")
+    parser.add_argument('-path_to_valid_img_feats', required=True,
+                        help="""Path to npy file containing validation image features""")
+    parser.add_argument('-dropout_imgs', type=float, default=0.5,
+                        help="Dropout probability applied to image features.")
+    parser.add_argument('--multimodal_model_type', required=True, type=str,
+                        choices=['generator', 'bank', 'bank+generator'],
+                        help="""Multi-modal NMT model type.""")
+
+def mmod_finetune_translate_opts(parser):
+    parser.add_argument('-path_to_test_img_feats', required=True,
+                        help="""Path to npy file containing test image features""")
+    parser.add_argument('--multimodal_model_type', required=True, type=str,
+                        choices=['generator', 'bank', 'bank+generator'],
+                        help="""Multi-modal NMT model type.""")
+
 # MARKDOWN boilerplate
 
 # Copyright 2016 The Chromium Authors. All rights reserved.

@@ -15,7 +15,7 @@ from onmt.Models import NMTModel, MeanEncoder, RNNEncoder, \
 from onmt.modules import Embeddings, ImageEncoder, CopyGenerator, \
                          TransformerEncoder, TransformerDecoder, \
                          CNNEncoder, CNNDecoder, AudioEncoder, \
-                         LinkedEmbeddings
+                         LinkedEmbeddings, multimodal
 from onmt.Utils import use_gpu
 from torch.nn.init import xavier_uniform
 
@@ -244,15 +244,24 @@ def make_base_model(model_opt, fields, gpu, checkpoint=None):
     model.model_type = model_opt.model_type
 
     # Make Generator.
-    if not model_opt.copy_attn:
+    try:
+        mmod_generator = 'generator' in model_opt.multimodal_model_type
+    except AttributeError:
+        mmod_generator = False
+    if model_opt.copy_attn:
+        generator = CopyGenerator(model_opt.rnn_size,
+                                  fields["tgt"].vocab)
+    else:
+        print('creating a Sequential generator')
         generator = nn.Sequential(
             nn.Linear(model_opt.rnn_size, len(fields["tgt"].vocab)),
             nn.LogSoftmax(dim=-1))
         if model_opt.share_decoder_embeddings:
             generator[0].weight = decoder.embeddings.word_lut_weight
-    else:
-        generator = CopyGenerator(model_opt.rnn_size,
-                                  fields["tgt"].vocab)
+    if mmod_generator:
+        print('wrapping in a MultiModalGenerator')
+        generator = onmt.modules.multimodal.MultiModalGenerator(
+            generator, model_opt.img_feat_dim)
 
     # Load the model states from checkpoint or initialize them.
     if checkpoint is not None:
