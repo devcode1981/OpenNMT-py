@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 import torch.cuda
+from torch.autograd import Variable
 
 import onmt
 import onmt.io
