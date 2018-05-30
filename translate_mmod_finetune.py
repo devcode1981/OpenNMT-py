@@ -10,6 +10,7 @@ import onmt
 import onmt.ModelConstructor
 import onmt.modules
 import onmt.opts
+import numpy as np
 
 
 def main(opt):

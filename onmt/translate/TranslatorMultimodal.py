@@ -24,6 +24,7 @@ def make_translator(opt, report_score=True, out_file=None):
     dummy_parser = argparse.ArgumentParser(description='train.py')
     onmt.opts.model_opts(dummy_parser)
     dummy_opt = dummy_parser.parse_known_args([])[0]
+    dummy_opt.multimodal_model_type = opt.multimodal_model_type
 
     fields, model, model_opt = \
         onmt.ModelConstructor.load_test_model(opt, dummy_opt.__dict__)
@@ -149,12 +150,7 @@ class MultimodalTranslator(Translator):
         # extract indices for all entries in the mini-batch
         idxs = batch.indices.cpu().data.numpy()
         # load image features for this minibatch into a pytorch Variable
-        img_feats = torch.from_numpy( self.test_img_feats[idxs] )
-        img_feats = torch.autograd.Variable(img_feats, requires_grad=False)
-        if next(self.model.parameters()).is_cuda:
-            img_feats = img_feats.cuda()
-        else:
-            img_feats = img_feats.cpu()
+        img_feats = torch.from_numpy(test_img_feats[idxs]).cuda()
 
         # (0) Prep each of the components of the search.
         # And helper method for reducing verbosity.
@@ -212,6 +208,7 @@ class MultimodalTranslator(Translator):
         memory_bank = rvar(memory_bank.data)
         memory_lengths = src_lengths.repeat(beam_size)
         dec_states.repeat_beam_size_times(beam_size)
+        img_feats = var(img_feats.repeat(beam_size, 1))
 
         # (3) run the decoder to generate sentences, using beam search.
         for i in range(self.max_length):

@@ -499,6 +499,9 @@ def mmod_finetune_opts(parser):
 def mmod_finetune_translate_opts(parser):
     parser.add_argument('-path_to_test_img_feats', required=True,
                         help="""Path to npy file containing test image features""")
+    parser.add_argument('--multimodal_model_type', required=True, type=str,
+                        choices=['generator', 'bank', 'bank+generator'],
+                        help="""Multi-modal NMT model type.""")
 
 # MARKDOWN boilerplate
 
