@@ -241,7 +241,7 @@ def make_loss_compute(model, tgt_vocab, opt, train=True):
 
 
 def train_model(model, fields, optim, data_type,
-                train_img_feats, valid_img_feats,
+                train_img_feats, valid_img_feats, train_feat_indices,
                 model_opt):
     train_loss = make_loss_compute(model, fields["tgt"].vocab, opt)
     valid_loss = make_loss_compute(model, fields["tgt"].vocab, opt,
@@ -257,7 +257,9 @@ def train_model(model, fields, optim, data_type,
                            train_loss, valid_loss,
                            optim, trunc_size, shard_size, data_type,
                            norm_method, grad_accum_count,
-                           train_img_feats, valid_img_feats, multimodal_model_type)
+                           train_img_feats, valid_img_feats,
+                           train_feat_indices,
+                           multimodal_model_type)
 
     print('\nStart training...')
     print(' * number of epochs: %d, starting from Epoch %d' %
@@ -419,77 +421,6 @@ def build_optim(model, checkpoint):
     optim.set_parameters(model.named_parameters())
     return optim
 
-"""
-def build_optim(model, checkpoint):
-    saved_optimizer_state_dict = None
-
-    if opt.train_from:
-        print('Loading optimizer from checkpoint.')
-        optim = checkpoint['optim']
-        # We need to save a copy of optim.optimizer.state_dict() for setting
-        # the, optimizer state later on in Stage 2 in this method, since
-        # the method optim.set_parameters(model.parameters()) will overwrite
-        # optim.optimizer, and with ith the values stored in
-        # optim.optimizer.state_dict()
-        saved_optimizer_state_dict = optim.optimizer.state_dict()
-    else:
-        print('Making optimizer for training.')
-        optim = onmt.Optim(
-            opt.optim, opt.learning_rate, opt.max_grad_norm,
-            lr_decay=opt.learning_rate_decay,
-            start_decay_at=opt.start_decay_at,
-            beta1=opt.adam_beta1,
-            beta2=opt.adam_beta2,
-            adagrad_accum=opt.adagrad_accumulator_init,
-            decay_method=opt.decay_method,
-            warmup_steps=opt.warmup_steps,
-            model_size=opt.rnn_size)
-
-    # Stage 1:
-    # Essentially optim.set_parameters (re-)creates and optimizer using
-    # model.paramters() as parameters that will be stored in the
-    # optim.optimizer.param_groups field of the torch optimizer class.
-    # Importantly, this method does not yet load the optimizer state, as
-    # essentially it builds a new optimizer with empty optimizer state and
-    # parameters from the model.
-    optim.set_parameters(model.named_parameters())
-    print(
-        "Stage 1: Keys after executing optim.set_parameters" +
-        "(model.parameters())")
-    show_optimizer_state(optim)
-
-    if opt.train_from:
-        # Stage 2: In this stage, which is only performed when loading an
-        # optimizer from a checkpoint, we load the saved_optimizer_state_dict
-        # into the re-created optimizer, to set the optim.optimizer.state
-        # field, which was previously empty. For this, we use the optimizer
-        # state saved in the "saved_optimizer_state_dict" variable for
-        # this purpose.
-        # See also: https://github.com/pytorch/pytorch/issues/2830
-        optim.optimizer.load_state_dict(saved_optimizer_state_dict)
-        # Convert back the state values to cuda type if applicable
-        if use_gpu(opt):
-            for state in optim.optimizer.state.values():
-                for k, v in state.items():
-                    if torch.is_tensor(v):
-                        state[k] = v.cuda()
-
-        print(
-            "Stage 2: Keys after executing  optim.optimizer.load_state_dict" +
-            "(saved_optimizer_state_dict)")
-        show_optimizer_state(optim)
-
-        # We want to make sure that indeed we have a non-empty optimizer state
-        # when we loaded an existing model. This should be at least the case
-        # for Adam, which saves "exp_avg" and "exp_avg_sq" state
-        # (Exponential moving average of gradient and squared gradient values)
-        if (optim.method == 'adam') and (len(optim.optimizer.state) < 1):
-            raise RuntimeError(
-                "Error: loaded Adam optimizer from existing model" +
-                " but optimizer state is empty")
-
-    return optim
-"""
 
 # Debugging method for showing the optimizer state
 def show_optimizer_state(optim):
@@ -509,6 +440,18 @@ def main():
     valid_img_feats = np.load(opt.path_to_valid_img_feats)
     train_img_feats = train_img_feats.astype(np.float32)
     valid_img_feats = valid_img_feats.astype(np.float32)
+
+    if opt.path_to_train_feat_indices:
+        train_feat_indices = []
+        with open(opt.path_to_train_feat_indices, 'r') as fobj:
+            for line in fobj:
+                train_feat_indices.append(int(line))
+        train_feat_indices = np.array(train_feat_indices, dtype=np.int64)
+        # add mean feature, addressable by -1
+        mean_feat = train_img_feats.mean(axis=0, keepdims=True)
+        train_img_feats = np.concatenate([train_img_feats, mean_feat], axis=0)
+    else:
+        train_feat_indices = None
 
     assert opt.train_from, 'mmod_finetune requires pre-trained model'
     # Load checkpoint if we resume from a previous training.
@@ -544,7 +487,7 @@ def main():
 
     # Do training.
     train_model(model, fields, optim, data_type,
-                train_img_feats, valid_img_feats,
+                train_img_feats, valid_img_feats, train_feat_indices,
                 model_opt)
 
     # If using tensorboard for logging, close the writer after training.
