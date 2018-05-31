@@ -497,7 +497,7 @@ def mmod_finetune_opts(parser):
                         help="""Multi-modal NMT model type.""")
     parser.add_argument('-mmod_generator_add', type=float, default=0.0,
                         help="""Add smoothing to multimodal generator gate.""")
-    parser.add_argument('-mmod_freeze_generator', type=bool, action='store_true',
+    parser.add_argument('-mmod_freeze_generator', action='store_true',
                         help="""Also freeze the projection in the generator,
                         only training the added layer(s).""")
 

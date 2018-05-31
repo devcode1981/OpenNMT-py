@@ -193,6 +193,10 @@ def make_base_model(model_opt, fields, gpu, checkpoint=None):
         mmod_generator = 'generator' in model_opt.multimodal_model_type
     except AttributeError:
         mmod_generator = False
+    try:
+        mmod_generator_add = model_opt.mmod_generator_add
+    except AttributeError:
+        mmod_generator_add = 0.0
     if model_opt.copy_attn:
         generator = CopyGenerator(model_opt.rnn_size,
                                   fields["tgt"].vocab)
@@ -206,7 +210,7 @@ def make_base_model(model_opt, fields, gpu, checkpoint=None):
     if mmod_generator:
         print('wrapping in a MultiModalGenerator')
         generator = onmt.modules.multimodal.MultiModalGenerator(
-            generator, model_opt.img_feat_dim, add=model_opt.mmod_generator_add)
+            generator, model_opt.img_feat_dim, add=mmod_generator_add)
 
     # Load the model states from checkpoint or initialize them.
     if checkpoint is not None:
