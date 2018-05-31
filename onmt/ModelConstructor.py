@@ -206,7 +206,7 @@ def make_base_model(model_opt, fields, gpu, checkpoint=None):
     if mmod_generator:
         print('wrapping in a MultiModalGenerator')
         generator = onmt.modules.multimodal.MultiModalGenerator(
-            generator, model_opt.img_feat_dim)
+            generator, model_opt.img_feat_dim, add=model_opt.mmod_generator_add)
 
     # Load the model states from checkpoint or initialize them.
     if checkpoint is not None:

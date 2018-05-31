@@ -386,7 +386,8 @@ def build_model(model_opt, opt, fields, checkpoint):
     mmod_generator = 'generator' in opt.multimodal_model_type
     # parameters of original model are frozen
     for name, param in model.named_parameters():
-        if name.startswith('generator') and mmod_generator:
+        if name.startswith('generator') and mmod_generator \
+                         and not opt.mmod_freeze_generator:
             # don't freeze generator
             continue
         print('freezing', name)
@@ -394,7 +395,7 @@ def build_model(model_opt, opt, fields, checkpoint):
     if mmod_generator:
         # a new multi-modal generator is trained
         model.generator = onmt.modules.multimodal.MultiModalGenerator(
-            model.generator, model_opt.img_feat_dim)
+            model.generator, model_opt.img_feat_dim, add=opt.mmod_generator_add)
     if len(opt.gpuid) > 1:
         print('Multi gpu training: ', opt.gpuid)
         model = nn.DataParallel(model, device_ids=opt.gpuid, dim=1)

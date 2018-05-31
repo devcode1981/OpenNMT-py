@@ -495,6 +495,11 @@ def mmod_finetune_opts(parser):
     parser.add_argument('--multimodal_model_type', required=True, type=str,
                         choices=['generator', 'bank', 'bank+generator'],
                         help="""Multi-modal NMT model type.""")
+    parser.add_argument('-mmod_generator_add', type=float, default=0.0,
+                        help="""Add smoothing to multimodal generator gate.""")
+    parser.add_argument('-mmod_freeze_generator', type=bool, action='set_true',
+                        help="""Also freeze the projection in the generator,
+                        only training the added layer(s).""")
 
 def mmod_finetune_translate_opts(parser):
     parser.add_argument('-path_to_test_img_feats', required=True,
@@ -502,6 +507,8 @@ def mmod_finetune_translate_opts(parser):
     parser.add_argument('--multimodal_model_type', required=True, type=str,
                         choices=['generator', 'bank', 'bank+generator'],
                         help="""Multi-modal NMT model type.""")
+    parser.add_argument('-mmod_generator_add', type=float, default=0.0,
+                        help="""Add smoothing to multimodal generator gate.""")
 
 # MARKDOWN boilerplate
 
