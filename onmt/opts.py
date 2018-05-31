@@ -511,6 +511,12 @@ def add_md_help_argument(parser):
 def mmod_finetune_opts(parser):
     parser.add_argument('-path_to_train_img_feats', required=True,
                         help="""Path to npy file containing training image features""")
+    parser.add_argument('-path_to_train_feat_indices', default=None,
+                        help="""Path to text file containing one line per training
+                        sentence pair, giving the index into the image feature matrix,
+                        or -1 to use the mean vector.
+                        If omitted, examples and image features are assumed to be
+                        in the same order.""")
     parser.add_argument('-path_to_valid_img_feats', required=True,
                         help="""Path to npy file containing validation image features""")
     parser.add_argument('-dropout_imgs', type=float, default=0.5,
@@ -518,6 +524,11 @@ def mmod_finetune_opts(parser):
     parser.add_argument('--multimodal_model_type', required=True, type=str,
                         choices=['generator', 'bank', 'bank+generator'],
                         help="""Multi-modal NMT model type.""")
+    parser.add_argument('-mmod_generator_add', type=float, default=0.0,
+                        help="""Add smoothing to multimodal generator gate.""")
+    parser.add_argument('-mmod_freeze_generator', action='store_true',
+                        help="""Also freeze the projection in the generator,
+                        only training the added layer(s).""")
 
 def mmod_finetune_translate_opts(parser):
     parser.add_argument('-path_to_test_img_feats', required=True,
@@ -525,6 +536,8 @@ def mmod_finetune_translate_opts(parser):
     parser.add_argument('--multimodal_model_type', required=True, type=str,
                         choices=['generator', 'bank', 'bank+generator'],
                         help="""Multi-modal NMT model type.""")
+    parser.add_argument('-mmod_generator_add', type=float, default=0.0,
+                        help="""Add smoothing to multimodal generator gate.""")
 
 # MARKDOWN boilerplate
 

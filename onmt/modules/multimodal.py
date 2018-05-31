@@ -9,18 +9,19 @@ import onmt.io
 from onmt.Utils import aeq
 
 
-
 class MultiModalGenerator(nn.Module):
-    def __init__(self, old_generator, img_feat_size, ):
+    def __init__(self, old_generator, img_feat_size, add=0):
         super(MultiModalGenerator, self).__init__()
         self.linear = old_generator[0]
         self.vocab_size = self.linear.weight.size(0)
         self.gate = nn.Linear(img_feat_size, self.vocab_size, bias=True)
+        nn.init.constant_(self.gate.bias, 1.0)
         self.logsoftmax = nn.LogSoftmax(dim=-1)
+        self.add = add
 
     def forward(self, hidden, img_feats, n_time):
         proj = self.linear(hidden)
-        gate = F.sigmoid(self.gate(img_feats))
+        gate = F.sigmoid(self.gate(img_feats)) + self.add
         gate = gate.repeat(n_time, 1)
         return self.logsoftmax(proj * gate)
 

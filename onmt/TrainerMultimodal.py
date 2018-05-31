@@ -48,6 +48,7 @@ class TrainerMultimodal(object):
                  trunc_size=0, shard_size=32, data_type='text',
                  norm_method="sents", grad_accum_count=1,
                  train_img_feats=None, valid_img_feats=None,
+                 train_feat_indices=None,
                  multimodal_model_type=None):
         # Basic attributes.
         self.model = model
@@ -61,6 +62,7 @@ class TrainerMultimodal(object):
         self.grad_accum_count = grad_accum_count
         self.train_img_feats = train_img_feats
         self.valid_img_feats = valid_img_feats
+        self.train_feat_indices = train_feat_indices
         self.multimodal_model_type = multimodal_model_type
         self.progress_step = 0
 
@@ -70,6 +72,7 @@ class TrainerMultimodal(object):
                 'Must provide validation image features!'
         assert(self.multimodal_model_type in ['generator', 'bank', 'bank+generator']), \
                 'Invalid multimodal model type: %s!'%(self.multimodal_model_type)
+
         # FIXME
         assert 'bank' not in self.multimodal_model_type, 'Bank-MMOD not implemented yet'
 
@@ -238,6 +241,8 @@ class TrainerMultimodal(object):
         for batch in true_batchs:
             # extract indices for all entries in the mini-batch
             idxs = batch.indices.cpu().data.numpy()
+            if self.train_feat_indices is not None:
+                idxs = self.train_feat_indices[idxs]
             # load image features for this minibatch into a pytorch Variable
             img_feats = torch.from_numpy( self.train_img_feats[idxs] )
             img_feats = torch.autograd.Variable(img_feats, requires_grad=False)
