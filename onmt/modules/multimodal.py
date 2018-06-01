@@ -15,7 +15,8 @@ class MultiModalGenerator(nn.Module):
         self.linear = old_generator[0]
         self.vocab_size = self.linear.weight.size(0)
         self.gate = nn.Linear(img_feat_size, self.vocab_size, bias=True)
-        nn.init.constant_(self.gate.bias, 1.0)
+        #nn.init.constant_(self.gate.bias, 1.0) # newer pytorch
+        nn.init.constant(self.gate.bias, 1.0)
         self.logsoftmax = nn.LogSoftmax(dim=-1)
         self.add = add
 
