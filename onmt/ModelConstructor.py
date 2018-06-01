@@ -239,8 +239,18 @@ def make_base_model(model_opt, fields, gpu, checkpoint=None):
 
     decoder = make_decoder(model_opt, tgt_embeddings)
 
-    # Make NMTModel(= encoder + decoder).
-    model = NMTModel(encoder, decoder)
+    # Make Model
+    try:
+        mmod_bank = 'bank' in model_opt.multimodal_model_type
+    except AttributeError:
+        mmod_bank = False
+    if mmod_bank:
+        bridge = MultiModalMemoryBankGate(
+            model_opt.rnn_size, model_opt.img_feat_dim, add=mmod_generator_add)
+        model = MultiModalNMTModel(encoder, decoder)
+    else:
+        # Make NMTModel(= encoder + decoder).
+        model = NMTModel(encoder, decoder)
     model.model_type = model_opt.model_type
 
     # Make Generator.
