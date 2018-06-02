@@ -180,6 +180,10 @@ def load_test_model(opt, dummy_opt, model_path=None):
     for arg in dummy_opt:
         if arg not in model_opt:
             model_opt.__dict__[arg] = dummy_opt[arg]
+    try:
+        model_opt.mmod_use_hidden = opt.mmod_use_hidden
+    except AttributeError:
+        model_opt.mmod_use_hidden = False
 
     model = make_base_model(model_opt, fields,
                             use_gpu(opt), checkpoint)

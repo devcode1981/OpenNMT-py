@@ -398,7 +398,7 @@ def build_model(model_opt, opt, fields, checkpoint):
         # a new multi-modal generator is trained
         model.generator = onmt.modules.multimodal.MultiModalGenerator(
             model.generator, model_opt.img_feat_dim,
-            add=opt.mmod_generator_add, use_hidden=mmod_use_hidden)
+            add=opt.mmod_generator_add, use_hidden=opt.mmod_use_hidden)
     if len(opt.gpuid) > 1:
         print('Multi gpu training: ', opt.gpuid)
         model = nn.DataParallel(model, device_ids=opt.gpuid, dim=1)
