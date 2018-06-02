@@ -313,6 +313,9 @@ class MultimodalTranslator(Translator):
         return gold_scores
 
     def _report_score(self, name, score_total, words_total):
+        if words_total == 0:
+            print('%s NO OUTPUT' % name)
+            return
         print("%s AVG SCORE: %.4f, %s PPL: %.4f" % (
             name, score_total / words_total,
             name, math.exp(-score_total / words_total)))
