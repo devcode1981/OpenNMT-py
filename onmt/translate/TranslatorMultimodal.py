@@ -48,9 +48,13 @@ def make_translator(opt, report_score=True, out_file=None):
 
 class MultimodalTranslator(Translator):
     def translate(self, src_dir, src_path, tgt_path,
-                  batch_size, attn_debug=False, test_img_feats=None):
+                  batch_size, attn_debug=False, test_img_feats=None,
+                  multimodal_model_type=None):
         assert test_img_feats is not None
         assert not self.copy_attn
+        assert multimodal_model_type is not None
+        self.multimodal_model_type = multimodal_model_type
+
         data = onmt.io.build_dataset(self.fields,
                                      self.data_type,
                                      src_path,
@@ -149,7 +153,7 @@ class MultimodalTranslator(Translator):
         """
         # extract indices for all entries in the mini-batch
         idxs = batch.indices.cpu().data.numpy()
-        # load image features for this minibatch into a pytorch Variable
+        # load image features for this minibatch into a pytorch Tensor
         img_feats = torch.from_numpy(test_img_feats[idxs]).cuda()
 
         # (0) Prep each of the components of the search.
@@ -194,6 +198,8 @@ class MultimodalTranslator(Translator):
             _, src_lengths = batch.src
 
         enc_states, memory_bank = self.model.encoder(src, src_lengths)
+        if 'bank' in self.multimodal_model_type:
+            memory_bank = self.model.bridge(memory_bank, var(img_feats), src.size(0))
         dec_states = self.model.decoder.init_decoder_state(
             src, memory_bank, enc_states)
 
@@ -237,7 +243,10 @@ class MultimodalTranslator(Translator):
             # dec_out: beam x rnn_size
 
             # (b) Compute a vector of batch x beam word scores.
-            out = self.model.generator.forward(dec_out, img_feats, 1).data
+            if 'generator' in self.multimodal_model_type:
+                out = self.model.generator.forward(dec_out, img_feats, 1).data
+            else: 
+                out = self.model.generator.forward(dec_out).data
             out = unbottle(out)
             # beam x tgt_vocab
             beam_attn = unbottle(attn["std"])

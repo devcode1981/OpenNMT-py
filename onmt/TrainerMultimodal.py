@@ -73,9 +73,6 @@ class TrainerMultimodal(object):
         assert(self.multimodal_model_type in ['generator', 'bank', 'bank+generator']), \
                 'Invalid multimodal model type: %s!'%(self.multimodal_model_type)
 
-        # FIXME
-        assert 'bank' not in self.multimodal_model_type, 'Bank-MMOD not implemented yet'
-
         assert(grad_accum_count > 0)
         if grad_accum_count > 1:
             assert(self.trunc_size == 0), \
@@ -183,11 +180,19 @@ class TrainerMultimodal(object):
                 img_feats = img_feats.cpu()
 
             # F-prop through the model.
-            outputs, attns, _ = self.model(src, tgt, src_lengths)
+            if 'bank' in self.multimodal_model_type:
+                outputs, attns, _ = self.model(src, tgt, src_lengths,
+                                               img_feats=img_feats)
+            else:
+                outputs, attns, _ = self.model(src, tgt, src_lengths)
 
             # Compute loss.
-            batch_stats = self.valid_loss.monolithic_compute_loss(
-                    batch, outputs, attns, img_feats=img_feats)
+            if 'generator' in self.multimodal_model_type:
+                batch_stats = self.valid_loss.monolithic_compute_loss(
+                        batch, outputs, attns, img_feats=img_feats)
+            else:
+                batch_stats = self.valid_loss.monolithic_compute_loss(
+                        batch, outputs, attns)
 
             # Update statistics.
             stats.update(batch_stats)
@@ -275,8 +280,13 @@ class TrainerMultimodal(object):
                 # 2. F-prop all but generator.
                 if self.grad_accum_count == 1:
                     self.model.zero_grad()
-                outputs, attns, dec_state = \
-                    self.model(src, tgt, src_lengths, dec_state)
+                if 'bank' in self.multimodal_model_type:
+                    outputs, attns, dec_state = \
+                        self.model(src, tgt, src_lengths, dec_state,
+                                   img_feats=img_feats)
+                else:
+                    outputs, attns, dec_state = \
+                        self.model(src, tgt, src_lengths, dec_state)
 
                 # 3. Compute loss in shards for memory efficiency.
                 if 'generator' in self.multimodal_model_type:

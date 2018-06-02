@@ -20,7 +20,7 @@ class MultiModalNMTModel(nn.Module):
     """
     def __init__(self, encoder, bridge, decoder, multigpu=False):
         self.multigpu = multigpu
-        super(NMTModel, self).__init__()
+        super(MultiModalNMTModel, self).__init__()
         self.encoder = encoder
         self.bridge = bridge
         self.decoder = decoder
@@ -46,6 +46,7 @@ class MultiModalNMTModel(nn.Module):
                  * dictionary attention dists of `[tgt_len x batch x src_len]`
                  * final decoder state
         """
+        assert img_feats is not None
         tgt = tgt[:-1]  # exclude last target from inputs
 
         enc_final, memory_bank = self.encoder(src, lengths)
@@ -66,19 +67,21 @@ class MultiModalNMTModel(nn.Module):
 
 class MultiModalMemoryBankGate(nn.Module):
     def __init__(self, bank_size, img_feat_size, add=0):
-        super(MultiModalGenerator, self).__init__()
+        super(MultiModalMemoryBankGate, self).__init__()
         self.bank_to_gate = nn.Linear(
             bank_size, bank_size, bias=False)
         self.feat_to_gate = nn.Linear(
             img_feat_size, bank_size, bias=True)
-        #nn.init.constant_(self.gate.bias, 1.0) # newer pytorch
-        nn.init.constant(self.gate.bias, 1.0)
+        #nn.init.constant_(self.feat_to_gate.bias, 1.0) # newer pytorch
+        nn.init.constant(self.feat_to_gate.bias, 1.0)
         self.add = add
 
     def forward(self, bank, img_feats, n_time):
-        feat_to_gate = self.gate(img_feats)
-        feat_to_gate = feat_to_gate.repeat(n_time, 1)
+        feat_to_gate = self.feat_to_gate(img_feats)
+        feat_to_gate = feat_to_gate.expand(n_time, -1, -1)
         bank_to_gate = self.bank_to_gate(bank)
+        #bank_to_gate = bank_to_gate.view(-1, bank_to_gate.size(2))
+        #print('bank_to_gate flat', bank_to_gate.shape)
         gate = F.sigmoid(feat_to_gate + bank_to_gate) + self.add
         gate = gate / (1. + self.add)
         return bank * gate

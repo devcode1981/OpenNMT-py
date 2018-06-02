@@ -19,7 +19,8 @@ def main(opt):
     test_img_feats = test_img_feats.astype(np.float32)
     translator.translate(opt.src_dir, opt.src, opt.tgt,
                          opt.batch_size, opt.attn_debug,
-                         test_img_feats)
+                         test_img_feats,
+                         multimodal_model_type=opt.multimodal_model_type)
 
 
 if __name__ == "__main__":
