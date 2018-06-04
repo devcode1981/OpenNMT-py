@@ -107,7 +107,7 @@ def make_linked_embeddings(opt, word_dict, feature_dicts, for_encoder=True):
                             sparse=opt.optim == "sparseadam")
 
 
-def make_encoder(opt, embeddings):
+def make_encoder(opt, embeddings, mmod_imgw=False):
     """
     Various encoder dispatcher function.
     Args:
@@ -115,8 +115,14 @@ def make_encoder(opt, embeddings):
         embeddings (Embeddings): vocab embeddings for this encoder.
     """
     if opt.encoder_type == "transformer":
-        return TransformerEncoder(opt.enc_layers, opt.rnn_size,
-                                  opt.dropout, embeddings)
+        if mmod_imgw:
+            return multimodal.MultiModalTransformerEncoder(
+                opt.enc_layers, opt.rnn_size,
+                opt.img_feat_dim,
+                opt.dropout, embeddings)
+        else:
+            return TransformerEncoder(opt.enc_layers, opt.rnn_size,
+                                      opt.dropout, embeddings)
     elif opt.encoder_type == "cnn":
         return CNNEncoder(opt.enc_layers, opt.rnn_size,
                           opt.cnn_kernel_width,
@@ -206,13 +212,32 @@ def make_base_model(model_opt, fields, gpu, checkpoint=None):
     assert model_opt.model_type in ["text", "img", "audio"], \
         ("Unsupported model type %s" % (model_opt.model_type))
 
+    try:
+        mmod_generator = 'generator' in model_opt.multimodal_model_type
+        mmod_bank = 'bank' in model_opt.multimodal_model_type
+        mmod_imgw = 'imgw' in model_opt.multimodal_model_type
+        mmod_model = mmod_bank or mmod_imgw
+    except AttributeError:
+        mmod_generator = False
+        mmod_bank = False
+        mmod_imgw = False
+        mmod_model = False
+    try:
+        mmod_generator_add = model_opt.mmod_generator_add
+    except AttributeError:
+        mmod_generator_add = 0.0
+    try:
+        mmod_use_hidden = model_opt.mmod_use_hidden
+    except AttributeError:
+        mmod_use_hidden = False
+
     # Make encoder.
     if model_opt.model_type == "text":
         src_dict = fields["src"].vocab
         feature_dicts = onmt.io.collect_feature_vocabs(fields, 'src')
         src_embeddings = make_embeddings(model_opt, src_dict,
                                          feature_dicts)
-        encoder = make_encoder(model_opt, src_embeddings)
+        encoder = make_encoder(model_opt, src_embeddings, mmod_imgw=mmod_imgw)
     elif model_opt.model_type == "img":
         encoder = ImageEncoder(model_opt.enc_layers,
                                model_opt.brnn,
@@ -242,25 +267,6 @@ def make_base_model(model_opt, fields, gpu, checkpoint=None):
         tgt_embeddings.word_lut.weight = src_embeddings.word_lut.weight
 
     decoder = make_decoder(model_opt, tgt_embeddings)
-
-    try:
-        mmod_generator = 'generator' in model_opt.multimodal_model_type
-        mmod_bank = 'bank' in model_opt.multimodal_model_type
-        mmod_imgw = 'imgw' in model_opt.multimodal_model_type
-        mmod_model = mmod_bank or mmod_imgw
-    except AttributeError:
-        mmod_generator = False
-        mmod_bank = False
-        mmod_imgw = False
-        mmod_model = False
-    try:
-        mmod_generator_add = model_opt.mmod_generator_add
-    except AttributeError:
-        mmod_generator_add = 0.0
-    try:
-        mmod_use_hidden = model_opt.mmod_use_hidden
-    except AttributeError:
-        mmod_use_hidden = False
 
     # Make Model
     if mmod_model:

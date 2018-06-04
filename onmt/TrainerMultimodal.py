@@ -70,7 +70,7 @@ class TrainerMultimodal(object):
                 'Must provide training image features!'
         assert(not self.valid_img_feats is None), \
                 'Must provide validation image features!'
-        assert(self.multimodal_model_type in ['generator', 'bank', 'bank+generator']), \
+        assert(self.multimodal_model_type in ['generator', 'bank', 'bank+generator', 'imgw']), \
                 'Invalid multimodal model type: %s!'%(self.multimodal_model_type)
 
         assert(grad_accum_count > 0)
@@ -280,7 +280,8 @@ class TrainerMultimodal(object):
                 # 2. F-prop all but generator.
                 if self.grad_accum_count == 1:
                     self.model.zero_grad()
-                if 'bank' in self.multimodal_model_type:
+                if 'bank' in self.multimodal_model_type \
+                        or 'imgw' in self.multimodal_model_type:
                     outputs, attns, dec_state = \
                         self.model(src, tgt, src_lengths, dec_state,
                                    img_feats=img_feats)
