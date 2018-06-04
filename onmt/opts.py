@@ -522,7 +522,7 @@ def mmod_finetune_opts(parser):
     parser.add_argument('-dropout_imgs', type=float, default=0.5,
                         help="Dropout probability applied to image features.")
     parser.add_argument('--multimodal_model_type', required=True, type=str,
-                        choices=['generator', 'bank', 'bank+generator'],
+                        choices=['generator', 'bank', 'bank+generator', 'imgw'],
                         help="""Multi-modal NMT model type.""")
     parser.add_argument('-mmod_generator_add', type=float, default=0.0,
                         help="""Add smoothing to multimodal generator gate.""")
@@ -537,7 +537,7 @@ def mmod_finetune_translate_opts(parser):
     parser.add_argument('-path_to_test_img_feats', required=True,
                         help="""Path to npy file containing test image features""")
     parser.add_argument('--multimodal_model_type', required=True, type=str,
-                        choices=['generator', 'bank', 'bank+generator'],
+                        choices=['generator', 'bank', 'bank+generator', 'imgw'],
                         help="""Multi-modal NMT model type.""")
     parser.add_argument('-mmod_generator_add', type=float, default=0.0,
                         help="""Add smoothing to multimodal generator gate.""")

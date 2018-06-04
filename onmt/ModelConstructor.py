@@ -245,8 +245,14 @@ def make_base_model(model_opt, fields, gpu, checkpoint=None):
 
     try:
         mmod_generator = 'generator' in model_opt.multimodal_model_type
+        mmod_bank = 'bank' in model_opt.multimodal_model_type
+        mmod_imgw = 'imgw' in model_opt.multimodal_model_type
+        mmod_model = mmod_bank or mmod_imgw
     except AttributeError:
         mmod_generator = False
+        mmod_bank = False
+        mmod_imgw = False
+        mmod_model = False
     try:
         mmod_generator_add = model_opt.mmod_generator_add
     except AttributeError:
@@ -257,14 +263,13 @@ def make_base_model(model_opt, fields, gpu, checkpoint=None):
         mmod_use_hidden = False
 
     # Make Model
-    try:
-        mmod_bank = 'bank' in model_opt.multimodal_model_type
-    except AttributeError:
-        mmod_bank = False
-    if mmod_bank:
-        bridge = multimodal.MultiModalMemoryBankGate(
-            model_opt.rnn_size, model_opt.img_feat_dim, add=mmod_generator_add)
-        model = multimodal.MultiModalNMTModel(encoder, bridge, decoder)
+    if mmod_model:
+        if mmod_bank:
+            bridge = multimodal.MultiModalMemoryBankGate(
+                model_opt.rnn_size, model_opt.img_feat_dim, add=mmod_generator_add)
+        else:
+            bridge = None
+        model = multimodal.MultiModalNMTModel(encoder, bridge, decoder, imgw=mmod_imgw)
     else:
         # Make NMTModel(= encoder + decoder).
         model = NMTModel(encoder, decoder)

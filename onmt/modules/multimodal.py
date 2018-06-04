@@ -7,6 +7,8 @@ from torch.autograd import Variable
 import onmt
 import onmt.io
 from onmt.Utils import aeq
+from onmt.modules.Transformer import TransformerEncoder
+
 
 class MultiModalNMTModel(nn.Module):
     """
@@ -18,12 +20,13 @@ class MultiModalNMTModel(nn.Module):
       decoder (:obj:`RNNDecoderBase`): a decoder object
       multi<gpu (bool): setup for multigpu support
     """
-    def __init__(self, encoder, bridge, decoder, multigpu=False):
+    def __init__(self, encoder, bridge, decoder, multigpu=False, imgw=False):
         self.multigpu = multigpu
         super(MultiModalNMTModel, self).__init__()
         self.encoder = encoder
         self.bridge = bridge
         self.decoder = decoder
+        self.imgw = imgw
 
     def forward(self, src, tgt, lengths, dec_state=None, img_feats=None):
         """Forward propagate a `src` and `tgt` pair for training.
@@ -49,8 +52,12 @@ class MultiModalNMTModel(nn.Module):
         assert img_feats is not None
         tgt = tgt[:-1]  # exclude last target from inputs
 
-        enc_final, memory_bank = self.encoder(src, lengths)
-        memory_bank = self.bridge(memory_bank, img_feats, src.size(0))
+        if self.imgw:
+            enc_final, memory_bank = self.encoder(src, img_feats, lengths)
+        else:
+            enc_final, memory_bank = self.encoder(src, lengths)
+        if self.bridge is not None:
+            memory_bank = self.bridge(memory_bank, img_feats, src.size(0))
         enc_state = \
             self.decoder.init_decoder_state(src, memory_bank, enc_final)
         decoder_outputs, dec_state, attns = \
@@ -144,3 +151,68 @@ class MultiModalLossCompute(onmt.Loss.NMTLossCompute):
 
         return loss, stats
         ### Copypasta ends
+
+
+class MultiModalTransformerEncoder(TransformerEncoder):
+    """
+    The Transformer encoder from "Attention is All You Need".
+
+
+    .. mermaid::
+
+       graph BT
+          A[input]
+          B[multi-head self-attn]
+          C[feed forward]
+          O[output]
+          A --> B
+          B --> C
+          C --> O
+
+
+
+    Args:
+       num_layers (int): number of encoder layers
+       hidden_size (int): number of hidden units
+       dropout (float): dropout parameters
+       embeddings (:obj:`onmt.modules.Embeddings`):
+          embeddings to use, should have positional encodings
+    """
+    def __init__(self, num_layers, hidden_size, img_feat_size,
+                 dropout, embeddings):
+        super(MultiModalTransformerEncoder, self).__init__(
+            num_layers, hidden_size, dropout, embeddings)
+        self.img_to_emb = nn.Linear(img_feat_size, hidden_size, bias=True)
+
+    def forward(self, input, img_feats, lengths=None, hidden=None):
+        """ See :obj:`EncoderBase.forward()`"""
+        self._check_args(input, lengths, hidden)
+
+        emb = self.embeddings(input)
+        #s_len, n_batch, emb_dim = emb.size()
+        img_emb = self.img_to_emb(img_feats)
+        # prepend image "word"
+        emb = torch.cat([img_emb, emb], dim=0)
+
+        out = emb.transpose(0, 1).contiguous()
+        words = input[:, :, 0].transpose(0, 1)
+        # expand mask to account for image "word"
+        words = torch.cat(words[:, 0], words)
+
+        # CHECKS
+        out_batch, out_len, _ = out.size()
+        w_batch, w_len = words.size()
+        aeq(out_batch, w_batch)
+        aeq(out_len, w_len)
+        # END CHECKS
+
+        # Make mask.
+        padding_idx = self.embeddings.word_padding_idx
+        mask = words.data.eq(padding_idx).unsqueeze(1) \
+            .expand(w_batch, w_len, w_len)
+        # Run the forward pass of every layer of the tranformer.
+        for i in range(self.num_layers):
+            out = self.transformer[i](out, mask)
+        out = self.layer_norm(out)
+
+        return Variable(emb.data), out.transpose(0, 1).contiguous()
