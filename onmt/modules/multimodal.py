@@ -190,14 +190,14 @@ class MultiModalTransformerEncoder(TransformerEncoder):
 
         emb = self.embeddings(input)
         #s_len, n_batch, emb_dim = emb.size()
-        img_emb = self.img_to_emb(img_feats)
+        img_emb = self.img_to_emb(img_feats).unsqueeze(0)
         # prepend image "word"
         emb = torch.cat([img_emb, emb], dim=0)
 
         out = emb.transpose(0, 1).contiguous()
         words = input[:, :, 0].transpose(0, 1)
         # expand mask to account for image "word"
-        words = torch.cat(words[:, 0], words)
+        words = torch.cat([words[:, 0:1], words], dim=1)
 
         # CHECKS
         out_batch, out_len, _ = out.size()
