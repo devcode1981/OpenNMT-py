@@ -54,6 +54,8 @@ class MultiModalNMTModel(nn.Module):
 
         if self.imgw:
             enc_final, memory_bank = self.encoder(src, img_feats, lengths)
+            # expand indices to account for image "word"
+            src = torch.cat([src[0:1, :, :], src], dim=0)
         else:
             enc_final, memory_bank = self.encoder(src, lengths)
         if self.bridge is not None:

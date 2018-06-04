@@ -180,7 +180,8 @@ class TrainerMultimodal(object):
                 img_feats = img_feats.cpu()
 
             # F-prop through the model.
-            if 'bank' in self.multimodal_model_type:
+            if 'bank' in self.multimodal_model_type \
+                    or 'imgw' in self.multimodal_model_type:
                 outputs, attns, _ = self.model(src, tgt, src_lengths,
                                                img_feats=img_feats)
             else:

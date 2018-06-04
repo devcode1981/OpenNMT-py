@@ -197,7 +197,12 @@ class MultimodalTranslator(Translator):
         if data_type == 'text':
             _, src_lengths = batch.src
 
-        enc_states, memory_bank = self.model.encoder(src, src_lengths)
+        if 'imgw' in self.multimodal_model_type:
+            enc_states, memory_bank = self.model.encoder(src, var(img_feats), src_lengths)
+            # expand indices to account for image "word"
+            src = torch.cat([src[0:1, :, :], src], dim=0)
+        else:
+            enc_states, memory_bank = self.model.encoder(src, src_lengths)
         if 'bank' in self.multimodal_model_type:
             memory_bank = self.model.bridge(memory_bank, var(img_feats), src.size(0))
         dec_states = self.model.decoder.init_decoder_state(
