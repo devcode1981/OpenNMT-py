@@ -265,7 +265,7 @@ def train_model(model, fields, optim, data_type,
     # check train set indexing
     if train_feat_indices is not None:
         max_train_idx = train_feat_indices.max()
-        print('train'. max_train_idx, train_img_feats.shape)
+        print('train', max_train_idx, train_img_feats.shape)
         assert max_train_idx < train_img_feats.shape[0]
     # check validation set indexing
     valid_iter = make_dataset_iter(lazily_load_dataset("valid"),
