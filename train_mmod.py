@@ -262,6 +262,19 @@ def train_model(model, fields, optim, data_type,
                            train_feat_indices,
                            multimodal_model_type)
 
+    # check train set indexing
+    if train_feat_indices is not None:
+        max_train_idx = train_feat_indices.max()
+        print('train'. max_train_idx, train_img_feats.shape)
+        assert max_train_idx < train_img_feats.shape[0]
+    # check validation set indexing
+    valid_iter = make_dataset_iter(lazily_load_dataset("valid"),
+                                    fields, opt,
+                                    is_train=False)
+    valid_sents = max(batch.indices.max().data[0] for batch in valid_iter)
+    print('valid', valid_sents, valid_img_feats.shape)
+    assert valid_sents == valid_img_feats.shape[0] - 1
+
     print('\nStart training...')
     print(' * number of epochs: %d, starting from Epoch %d' %
           (opt.epochs + 1 - opt.start_epoch, opt.start_epoch))
