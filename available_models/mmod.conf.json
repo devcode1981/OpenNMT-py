@@ -1,0 +1,24 @@
+{
+    "models_root": ".",
+    "models": [
+        {
+            "model": "opennmt.transformer.multiling.mscoco+multi30k+subs3M.domainprefix.surf.bpe50k_acc_80.42_ppl_2.49_e14.pt",
+            "timeout": 600,
+            "on_timeout": "unload",
+            "opt": {
+                "gpu": -1,
+                "batch_size": 16,
+                "beam_size": 8
+            },
+            "tokenizer": {
+                "type": "pyonmttok",
+                "mode": "aggressive",
+                "params": {
+                    "bpe_model_path": "bpe.50k.multiling",
+                    "joiner_annotate": 1,
+                    "joiner": "@@"
+                }
+            }
+        }
+    ]
+}
