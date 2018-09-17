@@ -13,7 +13,7 @@ import torch
 import onmt.opts
 
 from onmt.utils.logging import init_logger
-from onmt.translate.translator import build_translator
+from onmt.translate.translator import build_translator, NO_OUTPUT
 
 
 class Timer:
@@ -236,7 +236,7 @@ class ServerModel:
         try:
             self.translator = build_translator(self.opt,
                                                report_score=False,
-                                               out_file=open(os.devnull, "w"))
+                                               out_file=NO_OUTPUT)
         except RuntimeError as e:
             raise ServerModelError("Runtime Error: %s" % str(e))
 

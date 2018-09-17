@@ -17,6 +17,8 @@ import onmt.inputters as inputters
 import onmt.opts as opts
 import onmt.decoders.ensemble
 
+NO_OUTPUT = object()
+
 
 def build_translator(opt, report_score=True, logger=None, out_file=None):
     if out_file is None:
@@ -230,8 +232,9 @@ class Translator(object):
                 n_best_preds = [" ".join(pred)
                                 for pred in trans.pred_sents[:self.n_best]]
                 all_predictions += [n_best_preds]
-                self.out_file.write('\n'.join(n_best_preds) + '\n')
-                self.out_file.flush()
+                if self.out_file != NO_OUTPUT:
+                    self.out_file.write('\n'.join(n_best_preds) + '\n')
+                    self.out_file.flush()
 
                 if self.verbose:
                     sent_number = next(counter)
