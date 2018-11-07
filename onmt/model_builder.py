@@ -19,6 +19,7 @@ from onmt.encoders.image_encoder import ImageEncoder
 from onmt.decoders.decoder import InputFeedRNNDecoder, StdRNNDecoder
 from onmt.decoders.transformer import TransformerDecoder
 from onmt.decoders.cnn_decoder import CNNDecoder
+from onmt.decoders.samelength import SameLengthDecoder
 
 from onmt.modules import Embeddings, CopyGenerator
 from onmt.utils.misc import use_gpu
@@ -91,7 +92,13 @@ def build_decoder(opt, embeddings):
         opt: the option in current environment.
         embeddings (Embeddings): vocab embeddings for this decoder.
     """
-    if opt.decoder_type == "transformer":
+    if opt.decoder_type == "samelength":
+        return SameLengthDecoder(opt.rnn_type, opt.brnn,
+                                 opt.dec_layers, opt.dec_rnn_size,
+                                 opt.enc_rnn_size,
+                                 dropout=opt.dropout,
+                                 embeddings=embeddings)
+    elif opt.decoder_type == "transformer":
         return TransformerDecoder(opt.dec_layers, opt.dec_rnn_size,
                                   opt.heads, opt.transformer_ff,
                                   opt.global_attention, opt.copy_attn,
