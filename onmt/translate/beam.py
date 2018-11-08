@@ -124,7 +124,8 @@ class Beam(object):
         else:
             beam_scores = word_probs[0]
         flat_beam_scores = beam_scores.view(-1)
-        best_scores, best_scores_id = flat_beam_scores.topk(self.size, 0,
+        size = min(self.size, flat_beam_scores.size(0))
+        best_scores, best_scores_id = flat_beam_scores.topk(size, 0,
                                                             True, True)
 
         self.all_scores.append(self.scores)

@@ -141,13 +141,15 @@ class RNNDecoderBase(nn.Module):
     def map_state(self, fn):
         self.state["hidden"] = tuple(map(lambda x: fn(x, 1),
                                          self.state["hidden"]))
-        self.state["input_feed"] = fn(self.state["input_feed"], 1)
+        if "input_feed" in self.state:
+            self.state["input_feed"] = fn(self.state["input_feed"], 1)
 
     def detach_state(self):
         """ Need to document this """
         self.state["hidden"] = tuple([_.detach()
                                      for _ in self.state["hidden"]])
-        self.state["input_feed"] = self.state["input_feed"].detach()
+        if "input_feed" in self.state:
+            self.state["input_feed"] = self.state["input_feed"].detach()
 
     def forward(self, tgt, memory_bank, memory_lengths=None,
                 step=None):

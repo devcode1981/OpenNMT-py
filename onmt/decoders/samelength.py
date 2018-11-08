@@ -64,12 +64,17 @@ class SameLengthDecoder(RNNDecoderBase):
                 * attns: distribution over src at each tgt
                         `[tgt_len x batch x src_len]`.
         """
+        # memory_bank padded to same length as emb
+        memory_bank = torch.cat(
+            [memory_bank, memory_bank.data.new(1, memory_bank.size(1), memory_bank.size(2)).zero_()])
         # If single-stepping, extract the right timestep from memory_bank
         if step is not None:
-            memory_bank = memory_bank[step]
+            memory_bank_slice = memory_bank[step:step+1]
+        else:
+            memory_bank_slice = memory_bank
         # Run the forward pass of the RNN.
         dec_state, dec_outs, attns = self._run_forward_pass(
-            tgt, memory_bank, memory_lengths=memory_lengths)
+            tgt, memory_bank_slice, memory_lengths=memory_lengths)
 
         # Update the state with the result.
         output = dec_outs[-1]
@@ -86,8 +91,10 @@ class SameLengthDecoder(RNNDecoderBase):
         if type(dec_outs) == list:
             dec_outs = torch.stack(dec_outs)
 
+        dummy_att_size = [memory_bank.size(0), memory_bank.size(1), memory_bank.size(1)]
+        dummy_attns = {'std': memory_bank.data.new(*dummy_att_size).zero_()}
         # TODO change the way attns is returned dict => list or tuple (onnx)
-        return dec_outs, attns
+        return dec_outs, dummy_attns
 
     def _run_forward_pass(self, tgt, memory_bank, memory_lengths=None):
         """
@@ -114,7 +121,7 @@ class SameLengthDecoder(RNNDecoderBase):
         emb = self.embeddings(tgt)
 
         # concatenate embedding and encoder output
-        inp = torch.cat([emb, memory_bank], axis=2)
+        inp = torch.cat([emb, memory_bank], dim=2)
 
         # Run the forward pass of the RNN.
         if isinstance(self.rnn, nn.GRU):
