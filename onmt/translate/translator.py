@@ -626,7 +626,7 @@ class Translator(object):
         if self.same_length:
             fixed_lengths = memory_lengths + 1
         else:
-            fixed_lengths = [None] * len(batch_size)
+            fixed_lengths = [None] * memory_lengths.size(0)
         beam = [onmt.translate.Beam(beam_size, n_best=self.n_best,
                                     cuda=self.cuda,
                                     global_scorer=self.global_scorer,
