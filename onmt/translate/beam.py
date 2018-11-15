@@ -21,6 +21,7 @@ class Beam(object):
                  n_best=1, cuda=False,
                  global_scorer=None,
                  min_length=0,
+                 fixed_length=None,
                  stepwise_penalty=False,
                  block_ngram_repeat=0,
                  exclusion_tokens=set()):
@@ -57,6 +58,7 @@ class Beam(object):
 
         # Minimum prediction length
         self.min_length = min_length
+        self.fixed_length = fixed_length
 
         # Apply Penalty at every step
         self.stepwise_penalty = stepwise_penalty
@@ -91,6 +93,14 @@ class Beam(object):
         if cur_len < self.min_length:
             for k in range(len(word_probs)):
                 word_probs[k][self._eos] = -1e20
+        if self.fixed_length is not None:
+            if cur_len == self.fixed_length:
+                for k in range(len(word_probs)):
+                    word_probs[k][self._eos] = -1e-20
+            else:
+                for k in range(len(word_probs)):
+                    word_probs[k][self._eos] = -1e20
+
         # Sum the previous scores.
         if len(self.prev_ks) > 0:
             beam_scores = word_probs + \

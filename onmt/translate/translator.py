@@ -16,6 +16,7 @@ import onmt.translate.beam
 import onmt.inputters as inputters
 import onmt.opts as opts
 import onmt.decoders.ensemble
+from onmt.decoders.samelength import SameLengthDecoder
 
 
 def build_translator(opt, report_score=True, logger=None, out_file=None):
@@ -133,6 +134,8 @@ class Translator(object):
         self.report_rouge = report_rouge
         self.fast = fast
         self.image_channel_size = image_channel_size
+
+        self.same_length = isinstance(self.model.decoder, SameLengthDecoder)
 
         # for debugging
         self.beam_trace = self.dump_beam != ""
@@ -457,6 +460,13 @@ class Translator(object):
             if step < min_length:
                 log_probs[:, end_token] = -1e20
 
+            if self.same_length:
+                # manipulate probability of end token to enforce length
+                at_end = memory_lengths.data.eq(step)
+                not_at_end = 1 - at_end
+                log_probs[not_at_end, end_token] = -1e20
+                log_probs[at_end, end_token] = -1e-20
+
             # Multiply probs by the beam probability.
             log_probs += topk_log_probs.view(-1).unsqueeze(1)
 
@@ -580,18 +590,6 @@ class Translator(object):
         exclusion_tokens = set([vocab.stoi[t]
                                 for t in self.ignore_when_blocking])
 
-        beam = [onmt.translate.Beam(beam_size, n_best=self.n_best,
-                                    cuda=self.cuda,
-                                    global_scorer=self.global_scorer,
-                                    pad=vocab.stoi[inputters.PAD_WORD],
-                                    eos=vocab.stoi[inputters.EOS_WORD],
-                                    bos=vocab.stoi[inputters.BOS_WORD],
-                                    min_length=self.min_length,
-                                    stepwise_penalty=self.stepwise_penalty,
-                                    block_ngram_repeat=self.block_ngram_repeat,
-                                    exclusion_tokens=exclusion_tokens)
-                for __ in range(batch_size)]
-
         # Help functions for working with beams and batches
         def var(a):
             return torch.tensor(a, requires_grad=False)
@@ -624,6 +622,23 @@ class Translator(object):
             memory_bank = rvar(memory_bank.data)
         memory_lengths = src_lengths.repeat(beam_size)
         self.model.decoder.map_state(_repeat_beam_size_times)
+
+        if self.same_length:
+            fixed_lengths = memory_lengths + 1
+        else:
+            fixed_lengths = [None] * len(batch_size)
+        beam = [onmt.translate.Beam(beam_size, n_best=self.n_best,
+                                    cuda=self.cuda,
+                                    global_scorer=self.global_scorer,
+                                    pad=vocab.stoi[inputters.PAD_WORD],
+                                    eos=vocab.stoi[inputters.EOS_WORD],
+                                    bos=vocab.stoi[inputters.BOS_WORD],
+                                    min_length=self.min_length,
+                                    fixed_length=fixed_lengths[i],
+                                    stepwise_penalty=self.stepwise_penalty,
+                                    block_ngram_repeat=self.block_ngram_repeat,
+                                    exclusion_tokens=exclusion_tokens)
+                for i in range(batch_size)]
 
         # (3) run the decoder to generate sentences, using beam search.
         for i in range(self.max_length):
