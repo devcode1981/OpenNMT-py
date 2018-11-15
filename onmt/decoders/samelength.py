@@ -65,11 +65,14 @@ class SameLengthDecoder(RNNDecoderBase):
                         `[tgt_len x batch x src_len]`.
         """
         # memory_bank padded to same length as emb
-        memory_bank = torch.cat(
-            [memory_bank, memory_bank.data.new(1, memory_bank.size(1), memory_bank.size(2)).zero_()])
+        memory_bank_pad = memory_bank.data.new(1, memory_bank.size(1), memory_bank.size(2)).zero_()
+        memory_bank = torch.cat([memory_bank, memory_bank_pad])
         # If single-stepping, extract the right timestep from memory_bank
         if step is not None:
-            memory_bank_slice = memory_bank[step:step+1]
+            if step < memory_bank.size(0):
+                memory_bank_slice = memory_bank[step:step+1]
+            else:
+                memory_bank_slice = memory_bank_pad
         else:
             memory_bank_slice = memory_bank
         # Run the forward pass of the RNN.
