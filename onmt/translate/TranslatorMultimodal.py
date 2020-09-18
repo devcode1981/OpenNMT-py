@@ -154,7 +154,9 @@ class MultimodalTranslator(Translator):
         # extract indices for all entries in the mini-batch
         idxs = batch.indices.cpu().data.numpy()
         # load image features for this minibatch into a pytorch Tensor
-        img_feats = torch.from_numpy(test_img_feats[idxs]).cuda()
+        img_feats = torch.from_numpy(test_img_feats[idxs])
+        if self.cuda:
+            img_feats = img_feats.cuda()
 
         # (0) Prep each of the components of the search.
         # And helper method for reducing verbosity.
